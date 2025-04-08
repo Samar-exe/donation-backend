@@ -54,9 +54,19 @@ app.use(express.json({ limit: '1mb' })); // Limit JSON body size
 app.use(express.urlencoded({ extended: false, limit: '1mb' })); // Limit URL-encoded body size
 app.use(cookieParser());
 
+// Before CORS config, log environment variables for debugging
+console.log('Environment configuration:');
+console.log('- NODE_ENV:', process.env.NODE_ENV);
+console.log('- FRONTEND_URL:', process.env.FRONTEND_URL);
+console.log('- BACKEND_URL:', process.env.BACKEND_URL);
+console.log('- PORT:', process.env.PORT);
+
 // CORS configuration - more restrictive in production
 app.use(cors({
   origin: function(origin, callback) {
+    // Always log the origin for debugging
+    console.log('CORS origin check:', origin);
+    
     // Allow requests with no origin (like mobile apps or curl requests)
     if(!origin) return callback(null, true);
     
@@ -66,25 +76,28 @@ app.use(cors({
       'http://localhost:4173',
       'http://192.168.134.168:5173',
       'http://192.168.134.168:4173',
-      'https://your-free-domain.example'
+      'https://nurnexus.netlify.app',
+      'https://donation-zakah.netlify.app'
     ];
     
-    // For development, log the origin being checked
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Checking CORS for origin:', origin);
-    }
+    console.log('Allowed origins:', allowedOrigins);
     
     if(allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      console.log('CORS: Origin allowed -', origin);
       callback(null, true);
     } else {
-      console.log('CORS blocked request from:', origin);
+      console.log('CORS: Origin blocked -', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Set-Cookie']
 }));
+
+// Add pre-flight OPTIONS response for all routes
+app.options('*', cors());
 
 // Request logging middleware
 app.use((req, res, next) => {
