@@ -32,6 +32,24 @@ const userSchema = mongoose.Schema(
       type: String,
       sparse: true, // Allows multiple null values but unique non-null values
     },
+    sawabPoints: {
+      type: Number,
+      default: 0,
+    },
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      sparse: true,
+    },
+    referralCount: {
+      type: Number,
+      default: 0,
+    },
     verificationToken: String,
     verificationTokenExpiry: Date,
     resetPasswordToken: String,

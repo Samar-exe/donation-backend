@@ -8,14 +8,14 @@ class GmailEmailManager {
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: process.env.EMAIL_USER || 'samarik2004@gmail.com',
+        pass: process.env.EMAIL_PASS || 'kckvevypbqmmktqb',
       },
     });
 
     // Log configuration (without sensitive data)
     console.log('Gmail Email Manager configured with:');
-    console.log('- Email User:', process.env.EMAIL_USER ? process.env.EMAIL_USER : 'Not configured');
+    console.log('- Email User:', process.env.EMAIL_USER ? process.env.EMAIL_USER : 'Using fallback email');
     console.log('- Email Service: Gmail');
   }
 

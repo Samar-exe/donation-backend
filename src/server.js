@@ -10,6 +10,7 @@ import compression from 'compression';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
+import referralRoutes from './routes/referralRoutes.js';
 
 // Load environment variables early
 dotenv.config();
@@ -111,6 +112,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/referral', referralRoutes);
 
 // Health check route
 app.get('/health', (req, res) => {
@@ -136,6 +138,12 @@ app.get('/api', (req, res) => {
         resetPassword: 'POST /api/auth/reset-password',
         getCurrentUser: 'GET /api/auth/me',
         updateProfile: 'PUT /api/auth/profile',
+      },
+      referral: {
+        getReferralInfo: 'GET /api/referral',
+        applyReferralCode: 'POST /api/referral/apply',
+        shareReferralLink: 'POST /api/referral/share',
+        getSawabPoints: 'GET /api/referral/points'
       }
     }
   });

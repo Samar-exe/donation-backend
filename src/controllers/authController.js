@@ -27,12 +27,12 @@ if (process.env.NODE_ENV === 'production') {
   console.log('- EMAIL_FROM:', process.env.EMAIL_FROM);
   
   const emailConfig = {
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.EMAIL_PORT || '587'),
-    secure: parseInt(process.env.EMAIL_PORT || '587') === 465, // true for 465, false for other ports
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      user: process.env.EMAIL_USER || 'samarik2004@gmail.com',
+      pass: process.env.EMAIL_PASS || 'kckvevypbqmmktqb',
     },
     tls: {
       // do not fail on invalid certs
@@ -82,51 +82,60 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // @desc    Register a new user
-// @route   POST /auth/register
+// @route   POST /api/auth/register
 // @access  Public
 const register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-
-    // Validate input
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Please provide email and password' });
-    }
-
-    // Check if user exists
+    console.log('Registration attempt:', req.body.email);
+    
+    const { name, email, password, referralCode } = req.body;
+    
+    // Check for existing user
     const userExists = await User.findOne({ email });
-
+    
     if (userExists) {
-      console.log('Registration failed: User already exists -', email);
-      return res.status(400).json({ message: 'User already exists' });
+      console.log('Registration failed: Email already in use -', email);
+      return res.status(400).json({ message: 'User with this email already exists' });
     }
-
-    // Generate verification token
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    const verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-
-    console.log('Generated verification token for:', email);
-
+    
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create user with isVerified set to false initially
+    
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    
+    // Set token expiry to 24 hours from now
+    const verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000;
+    
+    // Create user
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
       verificationToken,
       verificationTokenExpiry,
+      sawabPoints: 0, // Initialize sawab points
       isVerified: false
     });
-
-    console.log('User created successfully:', user._id);
-
-    // Generate verification URL
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
-    console.log('Verification URL:', verificationUrl);
-
+    
+    // Store referral code if provided
+    if (referralCode) {
+      // Store the referral code in the user's session or in the database
+      // We'll validate and apply it after email verification
+      user.tempReferralCode = referralCode;
+      await user.save();
+      console.log(`User ${email} registered with referral code: ${referralCode}`);
+    }
+    
+    // Generate verification URL with referral code if provided
+    let verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+    if (referralCode) {
+      verificationUrl += `&ref=${referralCode}`;
+    }
+    
+    console.log('User registered successfully:', email);
+    
     // Send verification email with enhanced template
     try {
       await transporter.sendMail({
@@ -184,6 +193,7 @@ const register = async (req, res) => {
 const verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
+    const { referralCode } = req.query; // Get referral code from query if present
     
     // Find user by verification token
     const user = await User.findOne({ verificationToken: token });
@@ -195,6 +205,37 @@ const verifyEmail = async (req, res) => {
     // Update user to verified and remove token
     user.isVerified = true;
     user.verificationToken = undefined;
+    
+    // Get referral code from query params or from stored temp code
+    const codeToApply = referralCode || user.tempReferralCode;
+    
+    // Apply referral code if present (from URL or stored during registration)
+    if (codeToApply) {
+      const referrer = await User.findOne({ referralCode: codeToApply });
+      
+      if (referrer) {
+        // Make sure user isn't referring themselves
+        if (referrer._id.toString() !== user._id.toString()) {
+          // Make sure user hasn't already been referred
+          if (!user.referredBy) {
+            // Update referrer's points and count
+            referrer.sawabPoints = (referrer.sawabPoints || 0) + 5; // Referrer gets 5 points
+            referrer.referralCount = (referrer.referralCount || 0) + 1;
+            await referrer.save();
+            
+            // Update the newly verified user
+            user.sawabPoints = (user.sawabPoints || 0) + 2; // User gets 2 points
+            user.referredBy = referrer._id;
+            
+            console.log(`Referral applied: ${referrer.email} referred ${user.email}`);
+          }
+        }
+      }
+      
+      // Clear the temp referral code regardless of whether it was applied
+      user.tempReferralCode = undefined;
+    }
+    
     await user.save();
     
     // Generate JWT token for auto login
@@ -206,6 +247,7 @@ const verifyEmail = async (req, res) => {
       email: user.email,
       name: user.name || '',
       isVerified: user.isVerified,
+      sawabPoints: user.sawabPoints || 0,
       token: jwtToken
     });
   } catch (error) {
