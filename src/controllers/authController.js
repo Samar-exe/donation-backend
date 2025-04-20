@@ -614,6 +614,46 @@ const resendVerificationEmail = async (req, res) => {
   }
 };
 
+// @desc    Update user profile
+// @route   PUT /auth/profile
+// @access  Private
+const updateProfile = async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    const userId = req.user.id;
+
+    // Find the current user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if trying to update to an existing email
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ message: 'This email is already in use' });
+      }
+      user.email = email;
+    }
+
+    // Update name if provided
+    if (name) {
+      user.name = name;
+    }
+
+    // Save the updated user
+    await user.save();
+
+    // Return updated user without password
+    const updatedUser = await User.findById(userId).select('-password');
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // Export all controllers in one place - fixes duplicate exports
 export {
   register,
@@ -623,5 +663,6 @@ export {
   resendVerificationEmail,
   forgotPassword,
   resetPassword,
-  getCurrentUser
+  getCurrentUser,
+  updateProfile
 }; 

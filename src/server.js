@@ -134,6 +134,8 @@ app.get('/api', (req, res) => {
         verifyEmail: 'GET /api/auth/verify-email/:token',
         forgotPassword: 'POST /api/auth/forgot-password',
         resetPassword: 'POST /api/auth/reset-password',
+        getCurrentUser: 'GET /api/auth/me',
+        updateProfile: 'PUT /api/auth/profile',
       }
     }
   });

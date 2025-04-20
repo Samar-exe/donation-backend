@@ -7,7 +7,8 @@ import {
   resendVerificationEmail,
   forgotPassword,
   resetPassword,
-  getCurrentUser
+  getCurrentUser,
+  updateProfile
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -24,6 +25,7 @@ router.post('/reset-password', resetPassword);
 
 // Protected routes
 router.get('/me', protect, getCurrentUser);
+router.put('/profile', protect, updateProfile);
 
 // Test route to make sure auth is working
 router.get('/test', (req, res) => {
